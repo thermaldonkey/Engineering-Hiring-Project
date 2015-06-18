@@ -54,6 +54,19 @@ class TestBillingSchedules(unittest.TestCase):
         self.assertEquals(len(self.policy.invoices), 1)
         self.assertEquals(self.policy.invoices[0].amount_due, self.policy.annual_premium)
 
+    def test_monthly_billing_schedule(self):
+        self.policy.billing_schedule = "Monthly"
+        # We shouldn't have any invoices
+        self.assertFalse(self.policy.invoices)
+
+        pa = PolicyAccounting(self.policy.id)
+        # Invoices should now exist
+        number_of_billings = len(self.policy.invoices)
+        self.assertEquals(number_of_billings, 12)
+        amounts_due = [invoice.amount_due for invoice in self.policy.invoices]
+        for amount in amounts_due:
+            self.assertEquals(amount, self.policy.annual_premium/number_of_billings)
+
 
 class TestReturnAccountBalance(unittest.TestCase):
 
