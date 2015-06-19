@@ -62,6 +62,12 @@ class Invoice(db.Model):
         self.cancel_date = cancel_date
         self.amount_due = amount_due
 
+    def delete(self):
+        """
+        Marks the current invoice as deleted.
+        """
+        self.deleted = True
+
 
 class Payment(db.Model):
     __tablename__ = 'payments'

@@ -49,10 +49,11 @@ class PolicyAccounting(object):
         if not date_cursor:
             date_cursor = datetime.now().date()
 
-        # All of the policy's invoices that have been billed and should be
-        # expecting payment.
+        # All of the policy's non-deleted invoices that have been billed and
+        # should be expecting payment.
         invoices = Invoice.query.filter_by(policy_id=self.policy.id)\
                                 .filter(Invoice.bill_date <= date_cursor)\
+                                .filter(Invoice.deleted == False)\
                                 .order_by(Invoice.bill_date)\
                                 .all()
         due_now = 0
@@ -241,6 +242,22 @@ class PolicyAccounting(object):
         for invoice in invoices:
             db.session.add(invoice)
         db.session.commit()
+
+    def change_billing_schedule(self, new_schedule):
+        """
+        Reassigns the contextual policy's billing schedule and rebuilds
+        invoices.
+
+        Marks all existing invoices as deleted, but does not remove them from
+        the database.
+
+        Maintains all applied payments to the policy.
+
+        @param new_schedule (str): New billing schedule to apply to existing
+                policy. Must be a valid Policy.billing_schedule.
+        """
+        self.policy.billing_schedule = new_schedule
+        self.make_invoices()
 
 ################################
 # The functions below are for the db and 

@@ -130,6 +130,90 @@ class TestEvaluateCancellationPendingDueToNonPay(unittest.TestCase):
         self.assertNotEquals(pa.return_account_balance(date_cursor=limbo_date), 0)
         self.assertTrue(pa.evaluate_cancellation_pending_due_to_non_pay(date_cursor=limbo_date))
 
+class TestChangeBillingSchedule(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.test_agent = Contact('Test Agent', 'Agent')
+        cls.test_insured = Contact('Test Insured', 'Named Insured')
+        db.session.add(cls.test_agent)
+        db.session.add(cls.test_insured)
+        db.session.commit()
+
+        cls.policy = Policy('Test Policy', date(2015, 1, 1), 1200)
+        cls.policy.named_insured = cls.test_insured.id
+        cls.policy.agent = cls.test_agent.id
+        db.session.add(cls.policy)
+        db.session.commit()
+
+    @classmethod
+    def tearDownClass(cls):
+        db.session.delete(cls.test_insured)
+        db.session.delete(cls.test_agent)
+        db.session.delete(cls.policy)
+        db.session.commit()
+
+    def tearDown(self):
+        for payment in Payment.query.filter_by(policy_id=self.policy.id).all():
+            db.session.delete(payment)
+        for invoice in self.policy.invoices:
+            db.session.delete(invoice)
+        db.session.commit()
+
+    def test_quarterly_to_monthly(self):
+        self.policy.billing_schedule = 'Quarterly'
+        pa = PolicyAccounting(self.policy.id)
+
+        # Ensure quarterly billing sets up as expected
+        self.assertEquals(len(self.policy.invoices), 4)
+        final_due_date = self.policy.invoices[-1].due_date
+        self.assertEquals(pa.return_account_balance(date_cursor=final_due_date), self.policy.annual_premium)
+
+        # Make a payment
+        first_due_date = self.policy.invoices[0].due_date
+        first_amount_due = self.policy.invoices[0].amount_due
+        payment = pa.make_payment(date_cursor=first_due_date,amount=first_amount_due)
+
+        pa.change_billing_schedule('Monthly')
+
+        # There should now be 16 invoices; 4 deleted, 12 not deleted
+        self.assertEquals(len(self.policy.invoices), 16)
+        for i in xrange(len(self.policy.invoices)):
+            if i < 4:
+                self.assertTrue(self.policy.invoices[i].deleted)
+            else:
+                self.assertFalse(self.policy.invoices[i].deleted)
+
+        final_due_date = self.policy.invoices[-1].due_date
+        self.assertEquals(pa.return_account_balance(date_cursor=final_due_date), self.policy.annual_premium - payment.amount_paid)
+
+    def test_annual_to_quarterly(self):
+        self.policy.billing_schedule = 'Annual'
+        pa = PolicyAccounting(self.policy.id)
+
+        # Ensure annual billing sets up as expected
+        self.assertEquals(len(self.policy.invoices), 1)
+        final_due_date = self.policy.invoices[-1].due_date
+        self.assertEquals(pa.return_account_balance(date_cursor=final_due_date), self.policy.annual_premium)
+
+        # Make a payment
+        first_due_date = self.policy.invoices[0].due_date
+        first_amount_due = self.policy.invoices[0].amount_due
+        payment = pa.make_payment(date_cursor=first_due_date,amount=first_amount_due/2)
+
+        pa.change_billing_schedule('Quarterly')
+
+        # There should now be 5 invoices; 1 deleted, 4 not deleted
+        self.assertEquals(len(self.policy.invoices), 5)
+        for i in xrange(len(self.policy.invoices)):
+            if i < 1:
+                self.assertTrue(self.policy.invoices[i].deleted)
+            else:
+                self.assertFalse(self.policy.invoices[i].deleted)
+
+        final_due_date = self.policy.invoices[-1].due_date
+        self.assertEquals(pa.return_account_balance(date_cursor=final_due_date), self.policy.annual_premium - payment.amount_paid)
+
 class TestReturnAccountBalance(unittest.TestCase):
 
     @classmethod
@@ -188,3 +272,18 @@ class TestReturnAccountBalance(unittest.TestCase):
         self.payments.append(pa.make_payment(contact_id=self.policy.named_insured,
                                              date_cursor=invoices[1].bill_date, amount=600))
         self.assertEquals(pa.return_account_balance(date_cursor=invoices[1].bill_date), 0)
+
+    def test_quarterly_on_last_installment_bill_date_with_deleted_invoice(self):
+        self.policy.billing_schedule = "Quarterly"
+        pa = PolicyAccounting(self.policy.id)
+        invoices = Invoice.query.filter_by(policy_id=self.policy.id)\
+                                .order_by(Invoice.bill_date).all()
+
+        # Mark first invoice for deletion
+        invoice = invoices[0]
+        invoice.deleted = True
+        db.session.add(invoice)
+        db.session.commit()
+
+        self.assertEquals(pa.return_account_balance(date_cursor=invoices[3].bill_date), 900)
+
