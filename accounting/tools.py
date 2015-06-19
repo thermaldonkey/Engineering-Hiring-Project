@@ -20,15 +20,37 @@ class PolicyAccounting(object):
      Each policy has its own instance of accounting.
     """
     def __init__(self, policy_id):
+        """
+        Initializes accounting for the given policy. Builds out invoices for
+        the policy if none already exist.
+
+        @param policy_id (int): ID of the policy whose accounting should be
+                built
+        """
         self.policy = Policy.query.filter_by(id=policy_id).one()
 
         if not self.policy.invoices:
             self.make_invoices()
 
     def return_account_balance(self, date_cursor=None):
+        """
+        Returns outstanding balance suggested by contextual policy's invoices
+        whose billing date is less than or equal to the date scope, minus all
+        payments recorded within that same timeframe.
+
+        Date scope defaults to the current date if no value is given.
+
+        @param date_cursor (datetime.date,NoneType): Date to use when scoping
+                which invoices' amounts due should be expected, and which
+                payments' amounts paid should be credited to the return
+
+        @return (int): Amount currently due on the policy in context
+        """
         if not date_cursor:
             date_cursor = datetime.now().date()
 
+        # All of the policy's invoices that have been billed and should be
+        # expecting payment.
         invoices = Invoice.query.filter_by(policy_id=self.policy.id)\
                                 .filter(Invoice.bill_date <= date_cursor)\
                                 .order_by(Invoice.bill_date)\
@@ -37,6 +59,8 @@ class PolicyAccounting(object):
         for invoice in invoices:
             due_now += invoice.amount_due
 
+        # All of the policy's payments that should be applied to invoices'
+        # outstanding balances.
         payments = Payment.query.filter_by(policy_id=self.policy.id)\
                                 .filter(Payment.transaction_date <= date_cursor)\
                                 .all()
@@ -46,6 +70,24 @@ class PolicyAccounting(object):
         return due_now
 
     def make_payment(self, contact_id=None, date_cursor=None, amount=0):
+        """
+        Records a new payment for the contextual policy, to be processed
+        on a specified date, and returns that payment.
+
+        Payment is associated with the policy's named insured if no Contact
+        reference is given.
+
+        Transaction date defaults to the current date.
+
+        @param contact_id (int,NoneType): ID of the Contact with which to
+                associate the new payment
+        @param date_cursor (datetime.date,NoneType): Date to use for the new
+                payment's transaction_date
+        @param amount (int): Amount to credit the contextual policy with the
+                new payment
+
+        @return (payment): New payment, associated with the policy in context
+        """
         if not date_cursor:
             date_cursor = datetime.now().date()
 
@@ -74,9 +116,27 @@ class PolicyAccounting(object):
         pass
 
     def evaluate_cancel(self, date_cursor=None):
+        """
+        Checks all the contextual policy's invoices, whose cancel date occurs
+        before or on the given date, to ensure their account balances are paid
+        in full prior to or on their cancel date.
+
+        If any invoices are not paid in time, the policy is suggested to be
+        cancelled.
+
+        If no invoices have reached their cancel date, the policy is suggested
+        to not be cancelled.
+
+        If no date is given, date scope defaults to the current date.
+
+        @param date_cursor (datetime.date,NoneType): Date by which to scope
+                which invoices could potentially be cancelled
+        """
         if not date_cursor:
             date_cursor = datetime.now().date()
 
+        # All of the policies invoices that are due to be cancelled, should
+        # their amounts due not be paid in full.
         invoices = Invoice.query.filter_by(policy_id=self.policy.id)\
                                 .filter(Invoice.cancel_date <= date_cursor)\
                                 .order_by(Invoice.bill_date)\
@@ -93,6 +153,18 @@ class PolicyAccounting(object):
 
 
     def make_invoices(self):
+        """
+        Deletes all invoices associated with the contextual policy, and
+        rebuilds as many as are appropriate for the policy's billing schedule.
+
+        Bill dates, due dates, and cancel dates for all invoices are dispersed
+        over a year to evenly distribute portions of the policy's annual
+        premium.
+
+        If the policy's billing schedule is not recognized, a warning is
+        displayed, and only a single invoice, requesting the full annual
+        premium, is persisted.
+        """
         for invoice in self.policy.invoices:
             invoice.delete()
 
