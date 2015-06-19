@@ -68,6 +68,68 @@ class TestBillingSchedules(unittest.TestCase):
             self.assertEquals(amount, self.policy.annual_premium/number_of_billings)
 
 
+class TestEvaluateCancellationPendingDueToNonPay(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.test_insured = Contact('Test Insured', 'Named Insured')
+        cls.test_agent = Contact('Test Agent', 'Agent')
+        db.session.add(cls.test_insured)
+        db.session.add(cls.test_agent)
+        db.session.commit()
+
+        cls.policy = Policy('Test Policy', date(2015,1,1), 400)
+        cls.policy.named_insured = cls.test_insured.id
+        cls.policy.agent = cls.test_agent.id
+        db.session.add(cls.policy)
+        db.session.commit()
+
+    @classmethod
+    def tearDownClass(cls):
+        db.session.delete(cls.test_insured)
+        db.session.delete(cls.test_agent)
+        db.session.delete(cls.policy)
+        db.session.commit()
+
+    def tearDown(self):
+        self.policy.billing_schedule = 'Annual'
+        for payment in Payment.query.filter_by(policy_id=self.policy.id).all():
+            db.session.delete(payment)
+        for invoice in self.policy.invoices:
+            db.session.delete(invoice)
+        db.session.commit()
+
+    def test_false_when_paid_in_full(self):
+        pa = PolicyAccounting(self.policy.id)
+        limbo_date = self.policy.invoices[0].due_date + relativedelta(days=1)
+        for invoice in self.policy.invoices:
+            pa.make_payment(date_cursor=invoice.due_date,amount=invoice.amount_due)
+
+        self.assertEquals(pa.return_account_balance(date_cursor=limbo_date), 0)
+        self.assertFalse(pa.evaluate_cancellation_pending_due_to_non_pay(date_cursor=limbo_date))
+
+    def test_false_when_policy_cancelled(self):
+        pa = PolicyAccounting(self.policy.id)
+        already_cancelled_date = self.policy.invoices[0].cancel_date + relativedelta(days=1)
+
+        self.assertNotEquals(pa.return_account_balance(date_cursor=already_cancelled_date), 0)
+        self.assertFalse(pa.evaluate_cancellation_pending_due_to_non_pay(date_cursor=already_cancelled_date))
+
+    def test_true_when_one_invoice_not_paid(self):
+        pa = PolicyAccounting(self.policy.id)
+        limbo_date = self.policy.invoices[0].due_date + relativedelta(days=1)
+
+        self.assertNotEquals(pa.return_account_balance(date_cursor=limbo_date), 0)
+        self.assertTrue(pa.evaluate_cancellation_pending_due_to_non_pay(date_cursor=limbo_date))
+
+    def test_true_when_many_invoices_not_paid(self):
+        self.policy.billing_schedule = 'Quarterly'
+        pa = PolicyAccounting(self.policy.id)
+        limbo_date = self.policy.invoices[0].due_date + relativedelta(days=1)
+
+        self.assertNotEquals(pa.return_account_balance(date_cursor=limbo_date), 0)
+        self.assertTrue(pa.evaluate_cancellation_pending_due_to_non_pay(date_cursor=limbo_date))
+
 class TestReturnAccountBalance(unittest.TestCase):
 
     @classmethod

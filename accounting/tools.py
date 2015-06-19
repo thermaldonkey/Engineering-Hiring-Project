@@ -112,8 +112,30 @@ class PolicyAccounting(object):
          on a policy has passed the due date without
          being paid in full. However, it has not necessarily
          made it to the cancel_date yet.
+
+        @param date_cursor (datetime.date,NoneType): Date by which to scope
+                invoices for the policy in context such that they are due, but
+                not yet cancellable.
+
+        @return (bool): True if policy has any overdue invoices, False if paid
+                in full.
         """
-        pass
+        if not date_cursor:
+            date_cursor = datetime.now().date()
+
+        # All of the policy's invoices that are due to be paid, but not yet
+        # ready to be cancelled.
+        invoices = Invoice.query.filter_by(policy_id=self.policy.id)\
+                                .filter(Invoice.cancel_date > date_cursor)\
+                                .filter(Invoice.due_date <= date_cursor)\
+                                .order_by(Invoice.bill_date)\
+                                .all()
+
+        for invoice in invoices:
+            if not self.return_account_balance(date_cursor):
+                return False
+            else:
+                return True
 
     def evaluate_cancel(self, date_cursor=None):
         """
