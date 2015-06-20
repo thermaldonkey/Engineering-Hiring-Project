@@ -130,6 +130,61 @@ class TestEvaluateCancellationPendingDueToNonPay(unittest.TestCase):
         self.assertNotEquals(pa.return_account_balance(date_cursor=limbo_date), 0)
         self.assertTrue(pa.evaluate_cancellation_pending_due_to_non_pay(date_cursor=limbo_date))
 
+class TestEvaluateCancel(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.test_agent = Contact('Test Agent', 'Agent')
+        cls.test_insured = Contact('Test Insured', 'Named Insured')
+        db.session.add(cls.test_agent)
+        db.session.add(cls.test_insured)
+        db.session.commit()
+
+        cls.policy = Policy('Test Policy', date(2015, 1, 1), 1200)
+        cls.policy.named_insured = cls.test_insured.id
+        cls.policy.agent = cls.test_agent.id
+        db.session.add(cls.policy)
+        db.session.commit()
+
+    @classmethod
+    def tearDownClass(cls):
+        db.session.delete(cls.test_insured)
+        db.session.delete(cls.test_agent)
+        db.session.delete(cls.policy)
+        db.session.commit()
+
+    def setUp(self):
+        self.pa = PolicyAccounting(self.policy.id)
+
+    def tearDown(self):
+        self.policy.cancel_date = None
+        self.policy.cancel_reason = None
+        for invoice in self.policy.invoices:
+            db.session.delete(invoice)
+        db.session.commit()
+
+    def test_changes_policy_status(self):
+        cancellation_date = self.policy.invoices[-1].cancel_date
+
+        self.assertEquals(self.policy.status, 'Active')
+        self.pa.evaluate_cancel(date_cursor=cancellation_date)
+        self.assertEquals(self.policy.status, 'Canceled')
+
+    def test_stores_cancel_date(self):
+        cancellation_date = self.policy.invoices[-1].cancel_date
+
+        self.assertIsNone(self.policy.cancel_date)
+        self.pa.evaluate_cancel(date_cursor=cancellation_date)
+        self.assertEquals(self.policy.cancel_date, datetime.now().date())
+
+    def test_stores_cancel_reason(self):
+        cancellation_date = self.policy.invoices[-1].cancel_date
+        cancellation_reason = 'Because I said so'
+
+        self.assertIsNone(self.policy.cancel_reason)
+        self.pa.evaluate_cancel(date_cursor=cancellation_date, reason=cancellation_reason)
+        self.assertEquals(self.policy.cancel_reason, cancellation_reason)
+
 class TestChangeBillingSchedule(unittest.TestCase):
 
     @classmethod

@@ -138,14 +138,15 @@ class PolicyAccounting(object):
             else:
                 return True
 
-    def evaluate_cancel(self, date_cursor=None):
+    def evaluate_cancel(self, date_cursor=None, reason=None):
         """
         Checks all the contextual policy's invoices, whose cancel date occurs
         before or on the given date, to ensure their account balances are paid
         in full prior to or on their cancel date.
 
-        If any invoices are not paid in time, the policy is suggested to be
-        cancelled.
+        If any invoices are not paid in time, the policy is cancelled. This
+        modifies the policy's status, updates its cancel_date, and assigns
+        its cancel_reason, should a reason be provided.
 
         If no invoices have reached their cancel date, the policy is suggested
         to not be cancelled.
@@ -154,6 +155,8 @@ class PolicyAccounting(object):
 
         @param date_cursor (datetime.date,NoneType): Date by which to scope
                 which invoices could potentially be cancelled
+        @param reason (str,NoneType): Reason policy is to be cancelled, should
+                it qualify
         """
         if not date_cursor:
             date_cursor = datetime.now().date()
@@ -170,6 +173,9 @@ class PolicyAccounting(object):
                 continue
             else:
                 print "THIS POLICY SHOULD HAVE CANCELED"
+                self.policy.status = 'Canceled'
+                self.policy.cancel_date = datetime.now().date()
+                self.policy.cancel_reason = reason
                 break
         else:
             print "THIS POLICY SHOULD NOT CANCEL"
