@@ -4,9 +4,11 @@ import unittest
 from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
 
-from accounting import db
+from accounting import app, db
 from models import Contact, Invoice, Payment, Policy
 from tools import PolicyAccounting
+
+from flask import url_for
 
 """
 #######################################################
@@ -341,4 +343,111 @@ class TestReturnAccountBalance(unittest.TestCase):
         db.session.commit()
 
         self.assertEquals(pa.return_account_balance(date_cursor=invoices[3].bill_date), 900)
+
+class BriceCorTestCase(unittest.TestCase):
+
+    @classmethod
+    def setUpClass(cls):
+        cls.app = app.test_client()
+        cls.test_insured = Contact('Test Insured', 'Named Insured')
+        db.session.add(cls.test_insured)
+        db.session.commit()
+
+        cls.policy = Policy('Test Policy', date(2015, 1, 1), 1200)
+        cls.policy.named_insured = cls.test_insured.id
+        db.session.add(cls.policy)
+        db.session.commit()
+
+    @classmethod
+    def tearDownClass(cls):
+        db.session.delete(cls.policy)
+        db.session.delete(cls.test_insured)
+        db.session.commit()
+
+    def setUp(self):
+        """
+        No idea why, but in some of the tests in this suite, every call to
+        `self.policy` referenced a detached instance. Any calls to
+        `Policy#invoices` after that threw a DetachedInstanceError. If anyone
+        can see what I'm doing to cause that, I would love to hear it.
+        """
+        self.policy = Policy.query.get(self.policy.id)
+        self.original_effective_date = self.policy.effective_date
+
+    def tearDown(self):
+        for payment in Payment.query.filter_by(policy_id=self.policy.id).all():
+            db.session.delete(payment)
+        for invoice in Invoice.query.filter_by(policy_id=self.policy.id).all():
+            db.session.delete(invoice)
+        self.policy = self.original_effective_date
+        db.session.commit()
+
+    def test_home_page_links_to_search(self):
+        response = self.app.get('/')
+        self.assertRegexpMatches(response.data, 'href="/policy_search"')
+
+    def test_search_contains_form(self):
+        response = self.app.get('/policy_search')
+        self.assertRegexpMatches(response.data, 'form action="/policy_search" method="POST"')
+        self.assertRegexpMatches(response.data, 'input type="\w*" name="policy_number"')
+        self.assertRegexpMatches(response.data, 'input type="\w*" name="date"')
+
+    def test_searching_redirects_to_policy(self):
+        response = self.app.post('/policy_search', data={'policy_number': self.policy.policy_number, 'date': '2015-01-01'})
+        self.assertEquals(response.status_code, 302)
+        self.assertRegexpMatches(response.location, '/policy/' + str(self.policy.id))
+
+    def test_searching_allows_scoping_policy_account_balance(self):
+        self.policy.billing_schedule = 'Quarterly'
+        pa = PolicyAccounting(self.policy.id)
+        second_invoice = self.policy.invoices[1]
+        balance_as_of_second_invoice = pa.return_account_balance(date_cursor=second_invoice.due_date)
+
+        response = self.app.post('/policy_search', data={'policy_number': self.policy.policy_number, 'date': str(second_invoice.due_date)}, follow_redirects=True)
+        self.assertRegexpMatches(response.data, 'Account balance: \$' + str(balance_as_of_second_invoice))
+
+    def test_bad_date_scope_gives_user_feedback(self):
+        response = self.app.post('/policy_search', data={'policy_number': self.policy.policy_number, 'date': ''}, follow_redirects=True)
+        self.assertRegexpMatches(response.data, 'Date search must have format YYYY-MM-DD')
+
+    def test_bad_policy_number_gives_user_feedback(self):
+        not_policy_number = self.policy.policy_number + 'foo'
+        response = self.app.post('/policy_search', data={'policy_number': not_policy_number, 'date': '2015-01-01'}, follow_redirects=True)
+        self.assertRegexpMatches(response.data, 'No policy found with given number')
+
+    def test_bad_search_redirects_back_to_search(self):
+        not_policy_number = self.policy.policy_number + 'foo'
+        response = self.app.post('/policy_search', data={'policy_number': not_policy_number, 'date': '2015-01-01'})
+        self.assertEquals(response.status_code, 302)
+        self.assertRegexpMatches(response.location, '/policy_search')
+
+    def test_viewing_missing_policy_gives_user_a_way_home(self):
+        not_policy_id = self.policy.id + 1
+        response = self.app.get('/policy/' + str(not_policy_id))
+        self.assertRegexpMatches(response.data, 'href="/"')
+
+    def test_viewing_policy_shows_all_current_and_outstanding_invoices(self):
+        self.policy.billing_schedule = 'Quarterly'
+        # With this effective date, current date will consider only the first
+        # two invoices as current or outsanding.
+        self.policy.effective_date = datetime.now().date() - relativedelta(months=3)
+        pa = PolicyAccounting(self.policy.id)
+        first_invoice = self.policy.invoices[0]
+        pa.make_payment(date_cursor=first_invoice.due_date, amount=300)
+        current_invoices = filter(lambda inv: inv.bill_date <= datetime.now().date(), self.policy.invoices)
+
+        response = self.app.get('/policy/' + str(self.policy.id))
+        self.assertRegexpMatches(response.data, 'Invoices')
+        for invoice in current_invoices:
+            self.assertRegexpMatches(response.data, str(invoice.bill_date))
+            self.assertRegexpMatches(response.data, str(invoice.cancel_date))
+            self.assertRegexpMatches(response.data, str(invoice.due_date))
+            self.assertRegexpMatches(response.data, str(invoice.amount_due))
+            self.assertRegexpMatches(response.data, str(invoice.deleted))
+
+    def test_viewing_policy_displays_current_account_balance(self):
+        pa = PolicyAccounting(self.policy.id)
+        current_account_balance = pa.return_account_balance()
+        response = self.app.get('/policy/' + str(self.policy.id))
+        self.assertRegexpMatches(response.data, 'Account balance: \$' + str(current_account_balance))
 

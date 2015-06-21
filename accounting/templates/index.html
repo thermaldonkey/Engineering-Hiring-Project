@@ -1,15 +1,8 @@
-<!doctype html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <title>Some sort of title?</title>
-  <meta name="description" content="What is this?">
-  <meta name="author" content="Who?">
-  <!--[if lt IE 9]>
-<script src="http://html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-<![endif]-->
-</head>
-<body>
-    <p>Your server is working.</p>
-</body>
-</html>
+{% extends "layout.html" %}
+{% block body %}
+  <h1>Welcome to BriceCore!</h1>
+  <p>...get it?</p>
+  {% with link_text = "Search for policy" %}
+    {% include "link_to_search.html" %}
+  {% endwith %}
+{% endblock %}

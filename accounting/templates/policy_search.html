@@ -1,0 +1,13 @@
+{% extends "layout.html" %}
+{% block body %}
+  <h1>Policy Search</h1>
+  <form action="/policy_search" method="POST">
+    Policy Number:<br/>
+    <input type="text" name="policy_number">
+    <br/>
+    Date:<br/>
+    <input type="text" name="date" placeholder="YYYY-MM-DD">
+    <br/><br/>
+    <input type="submit" value="Search">
+  </form>
+{% endblock %}
