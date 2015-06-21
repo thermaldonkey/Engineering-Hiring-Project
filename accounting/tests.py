@@ -389,8 +389,8 @@ class BriceCorTestCase(unittest.TestCase):
     def test_search_contains_form(self):
         response = self.app.get('/policy_search')
         self.assertRegexpMatches(response.data, 'form action="/policy_search" method="POST"')
-        self.assertRegexpMatches(response.data, 'input type="\w*" name="policy_number"')
-        self.assertRegexpMatches(response.data, 'input type="\w*" name="date"')
+        self.assertRegexpMatches(response.data, 'input [\w=" ]+ name="policy_number"')
+        self.assertRegexpMatches(response.data, 'input [\w=" ]+ name="date"')
 
     def test_searching_redirects_to_policy(self):
         response = self.app.post('/policy_search', data={'policy_number': self.policy.policy_number, 'date': '2015-01-01'})
@@ -404,7 +404,7 @@ class BriceCorTestCase(unittest.TestCase):
         balance_as_of_second_invoice = pa.return_account_balance(date_cursor=second_invoice.due_date)
 
         response = self.app.post('/policy_search', data={'policy_number': self.policy.policy_number, 'date': str(second_invoice.due_date)}, follow_redirects=True)
-        self.assertRegexpMatches(response.data, 'Account balance: \$' + str(balance_as_of_second_invoice))
+        self.assertRegexpMatches(response.data, 'Account balance:</strong> \$' + str(balance_as_of_second_invoice))
 
     def test_bad_date_scope_gives_user_feedback(self):
         response = self.app.post('/policy_search', data={'policy_number': self.policy.policy_number, 'date': ''}, follow_redirects=True)
@@ -449,5 +449,5 @@ class BriceCorTestCase(unittest.TestCase):
         pa = PolicyAccounting(self.policy.id)
         current_account_balance = pa.return_account_balance()
         response = self.app.get('/policy/' + str(self.policy.id))
-        self.assertRegexpMatches(response.data, 'Account balance: \$' + str(current_account_balance))
+        self.assertRegexpMatches(response.data, 'Account balance:</strong> \$' + str(current_account_balance))
 

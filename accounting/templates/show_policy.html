@@ -1,31 +1,36 @@
 {% extends "layout.html" %}
 {% block body %}
   <h1>{{ policy.policy_number }}</h1>
-  Account balance: ${{ account_balance }}
-  {% if invoices|length > 0 %}
+  <div class="well">
+    <strong>Account balance:</strong> ${{ account_balance }}
+  </div>
+  {%- if invoices|length > 0 -%}
     <h2>Invoices</h2>
-    <table>
-      <tr>
-        <th>Bill Date</th>
-        <th>Due Date</th>
-        <th>Cancel Date</th>
-        <th>Amount Due</th>
-        <th>Deleted?</th>
-      </tr>
-      {% for invoice in invoices %}
+    <div class="table-responsive">
+      <table class="table table-striped">
         <tr>
-          <td>{{ invoice.bill_date }}</td>
-          <td>{{ invoice.due_date }}</td>
-          <td>{{ invoice.cancel_date }}</td>
-          <td>{{ invoice.amount_due }}</td>
-          <td>{{ invoice.deleted }}</td>
+          <th>Bill Date</th>
+          <th>Due Date</th>
+          <th>Cancel Date</th>
+          <th>Amount Due</th>
+          <th>Deleted?</th>
         </tr>
-      {% endfor %}
-    </table>
-  {% else %}
+        {%- for invoice in invoices -%}
+          {%- if invoice.deleted -%}
+            <tr class="danger">
+          {%- else -%}
+            <tr>
+          {%- endif -%}
+            <td>{{ invoice.bill_date }}</td>
+            <td>{{ invoice.due_date }}</td>
+            <td>{{ invoice.cancel_date }}</td>
+            <td>{{ invoice.amount_due }}</td>
+            <td>{{ invoice.deleted }}</td>
+          </tr>
+        {%- endfor -%}
+      </table>
+    </div>
+  {%- else -%}
     <h2>No invoices</h2>
   {% endif %}
-  {% with link_text = "Search again" %}
-    {% include "link_to_search.html" %}
-  {% endwith %}
-{% endblock %}
+{%- endblock -%}
