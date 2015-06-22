@@ -1,0 +1,51 @@
+{% extends "layout.html" %}
+{%- block body -%}
+  <div data-bind="with: chosenPolicyData">
+    <h1 data-bind="text: policy_number"></h1>
+    <div class="well">
+      <strong>Account balance:</strong> $<span data-bind="text: account_balance"></span>
+    </div>
+    <div data-bind="visible: invoices.length > 0">
+      <h2>Invoices</h2>
+      <div class="table-responsive">
+        <table class="table table-striped">
+          <thead>
+            <tr>
+              <th>Bill Date</th>
+              <th>Due Date</th>
+              <th>Cancel Date</th>
+              <th>Amount Due</th>
+              <th>Deleted?</th>
+            </tr>
+          </thead>
+          <tbody data-bind="foreach: invoices">
+            <tr data-bind="css: { danger: deleted }">
+              <td data-bind="text: bill_date"></td>
+              <td data-bind="text: due_date"></td>
+              <td data-bind="text: cancel_date"></td>
+              <td data-bind="text: amount_due"></td>
+              <td data-bind="text: deleted"></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="row">
+    <div class="col-md-4 col-md-offset-4">
+      <h1>Policy Search</h1>
+      <small>Brought to you by Knockout.js</small>
+      <form>
+        <div class="form-group">
+          <label for="policy_number">Policy Number</label>
+          <input data-bind="value: policy_number" id="policy_number" type="text" name="policy_number" class="form-control">
+        </div>
+        <div class="form-group">
+          <label for="date">Date</label>
+          <input data-bind="value: date" id="date" type="text" name="date" class="form-control" placeholder="YYYY-MM-DD">
+        </div>
+        <button class="btn btn-default btn-primary" type="submit" data-bind="click: fetchPolicy">Search</button>
+      </form>
+    </div>
+  </div>
+{%- endblock %}

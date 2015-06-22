@@ -1,0 +1,15 @@
+{
+  "id": {{ policy.id|tojson }},
+  "policy_number": {{ policy.policy_number|tojson|safe }},
+  "account_balance": {{ account_balance|tojson }},
+  "invoices": [
+    {%- for i in range(invoices|length) %}
+      {%- with invoice = invoices[i] -%}
+        {% include 'invoice.json' -%}
+        {%- if i + 1 != invoices|length -%}
+          ,
+        {%- endif -%}
+      {%- endwith -%}
+    {% endfor -%}
+  ]
+}

@@ -384,42 +384,49 @@ class BriceCorTestCase(unittest.TestCase):
 
     def test_home_page_links_to_search(self):
         response = self.app.get('/')
-        self.assertRegexpMatches(response.data, 'href="/policy_search"')
+        self.assertRegexpMatches(response.data, 'href="/v1/policy_search"')
+        self.assertRegexpMatches(response.data, 'href="/v2/policy_search"')
 
-    def test_search_contains_form(self):
-        response = self.app.get('/policy_search')
-        self.assertRegexpMatches(response.data, 'form action="/policy_search" method="POST"')
+    def test_flask_search_contains_form(self):
+        response = self.app.get('/v1/policy_search')
+        self.assertRegexpMatches(response.data, 'form action="/v1/policy_search" method="POST"')
         self.assertRegexpMatches(response.data, 'input [\w=" ]+ name="policy_number"')
         self.assertRegexpMatches(response.data, 'input [\w=" ]+ name="date"')
 
-    def test_searching_redirects_to_policy(self):
-        response = self.app.post('/policy_search', data={'policy_number': self.policy.policy_number, 'date': '2015-01-01'})
+    def test_flask_searching_redirects_to_policy(self):
+        response = self.app.post('/v1/policy_search', data={'policy_number': self.policy.policy_number, 'date': '2015-01-01'})
         self.assertEquals(response.status_code, 302)
         self.assertRegexpMatches(response.location, '/policy/' + str(self.policy.id))
 
-    def test_searching_allows_scoping_policy_account_balance(self):
+    def test_flask_searching_allows_scoping_policy_account_balance(self):
         self.policy.billing_schedule = 'Quarterly'
         pa = PolicyAccounting(self.policy.id)
         second_invoice = self.policy.invoices[1]
         balance_as_of_second_invoice = pa.return_account_balance(date_cursor=second_invoice.due_date)
 
-        response = self.app.post('/policy_search', data={'policy_number': self.policy.policy_number, 'date': str(second_invoice.due_date)}, follow_redirects=True)
+        response = self.app.post('/v1/policy_search', data={'policy_number': self.policy.policy_number, 'date': str(second_invoice.due_date)}, follow_redirects=True)
         self.assertRegexpMatches(response.data, 'Account balance:</strong> \$' + str(balance_as_of_second_invoice))
 
     def test_bad_date_scope_gives_user_feedback(self):
-        response = self.app.post('/policy_search', data={'policy_number': self.policy.policy_number, 'date': ''}, follow_redirects=True)
+        response = self.app.post('/v1/policy_search', data={'policy_number': self.policy.policy_number, 'date': ''}, follow_redirects=True)
         self.assertRegexpMatches(response.data, 'Date search must have format YYYY-MM-DD')
 
     def test_bad_policy_number_gives_user_feedback(self):
         not_policy_number = self.policy.policy_number + 'foo'
-        response = self.app.post('/policy_search', data={'policy_number': not_policy_number, 'date': '2015-01-01'}, follow_redirects=True)
+        response = self.app.post('/v1/policy_search', data={'policy_number': not_policy_number, 'date': '2015-01-01'}, follow_redirects=True)
         self.assertRegexpMatches(response.data, 'No policy found with given number')
 
-    def test_bad_search_redirects_back_to_search(self):
+    def test_bad_flask_search_redirects_back_to_flask_search(self):
         not_policy_number = self.policy.policy_number + 'foo'
-        response = self.app.post('/policy_search', data={'policy_number': not_policy_number, 'date': '2015-01-01'})
+        response = self.app.post('/v1/policy_search', data={'policy_number': not_policy_number, 'date': '2015-01-01'})
         self.assertEquals(response.status_code, 302)
-        self.assertRegexpMatches(response.location, '/policy_search')
+        self.assertRegexpMatches(response.location, '/v1/policy_search')
+
+    def test_knockout_search_contains_form(self):
+        response = self.app.get('/v2/policy_search')
+        self.assertRegexpMatches(response.data, '<form>')
+        self.assertRegexpMatches(response.data, 'input data-bind="value: policy_number"')
+        self.assertRegexpMatches(response.data, 'input data-bind="value: date"')
 
     def test_viewing_missing_policy_gives_user_a_way_home(self):
         not_policy_id = self.policy.id + 1

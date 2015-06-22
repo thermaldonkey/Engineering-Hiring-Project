@@ -1,0 +1,7 @@
+{
+  "bill_date": {{ invoice.bill_date|date|tojson }},
+  "due_date": {{ invoice.due_date|date|tojson }},
+  "cancel_date": {{ invoice.cancel_date|date|tojson }},
+  "amount_due": {{ invoice.amount_due|tojson }},
+  "deleted": {{ invoice.deleted|tojson }}
+}
