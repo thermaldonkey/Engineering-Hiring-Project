@@ -15,7 +15,7 @@
   <script src="{{ url_for('.static', filename='bootstrap.min.js') }}" type="text/javascript"></script>
   <script src="{{ url_for('.static', filename='bootstrap-datepicker.min.js') }}" type="text/javascript"></script>
   <script src="{{ url_for('.static', filename='knockout-3.3.0.js') }}" type="text/javascript"></script>
-  <script src="{{ url_for('.static', filename='bricecore.js') }}" type="text/javascript"></script>
+  {%- block head -%}{% endblock %}
 </head>
 <body>
   <div class="container">

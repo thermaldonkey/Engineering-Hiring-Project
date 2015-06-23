@@ -1,4 +1,7 @@
 {% extends "layout.html" %}
+{%- block head -%}
+  <script src="{{ url_for('.static', filename='knockout_search.js') }}" type="text/javascript"></script>
+{%- endblock -%}
 {%- block body -%}
   <div data-bind="with: chosenPolicyData">
     <h1 data-bind="text: policy_number"></h1>
@@ -36,15 +39,16 @@
       <h1>Policy Search</h1>
       <small>Brought to you by Knockout.js</small>
       <form>
-        <div class="form-group">
-          <label for="policy_number">Policy Number</label>
-          <input data-bind="value: policy_number" id="policy_number" type="text" name="policy_number" class="form-control">
+        <div data-bind="css: { 'has-error': policy_number.hasError }" class="form-group">
+          <label class="control-label" for="policy_number">Policy Number</label>
+          <input data-bind="value: policy_number, valueUpdate: 'afterkeydown'" id="policy_number" type="text" name="policy_number" class="form-control">
+          <span data-bind="visible: policy_number.hasError, text: policy_number.validationMessage" class="help-block"></span>
         </div>
         <div class="form-group">
           <label for="date">Date</label>
           <input data-bind="value: date" id="date" type="text" name="date" class="form-control" placeholder="YYYY-MM-DD">
         </div>
-        <button class="btn btn-default btn-primary" type="submit" data-bind="click: fetchPolicy">Search</button>
+        <button class="btn btn-default btn-primary" type="submit" data-bind="click: verifyForm, disable: hasErrors()">Search</button>
       </form>
     </div>
   </div>

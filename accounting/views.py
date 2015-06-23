@@ -46,14 +46,10 @@ def show_policy(policy_id):
 
     @param policy_id (int): Database identifier of a policy to fetch details on
     """
-    try:
-        policy = Policy.query.filter_by(id=policy_id).one()
-        date_string = request.args.get('date', datetime.now().date().strftime('%Y-%m-%d'))
-        date_cursor = datetime.strptime(date_string, '%Y-%m-%d').date()
-        account_balance = PolicyAccounting(policy.id).return_account_balance(date_cursor=date_cursor)
-        current_invoices = filter(lambda inv: inv.bill_date <= date_cursor, policy.invoices)
-        return render_template('show_policy.html', policy=policy, account_balance=account_balance, invoices=current_invoices)
-    except sqlalchemy.orm.exc.NoResultFound:
+    policy = find_policy_by(id=policy_id)
+    if policy:
+        return render_policy_details(policy, request.args.get('date'), 'show_policy.html')
+    else:
         return policy_not_found()
 
 @app.route('/find_policy', methods=['POST'])
@@ -66,15 +62,53 @@ def find_policy():
     json_params = json.loads(request.data)
 
     policy_number = json_params.get('policy_number')
-    policy = Policy.query.filter_by(policy_number=policy_number).one()
-    date_string = json_params.get('date', datetime.now().date().strftime('%Y-%m-%d'))
+
+    policy = find_policy_by(policy_number=policy_number)
+
+    if policy:
+        response = render_policy_details(policy, json_params.get('date'), 'policy.json')
+        # We need to make sure we respond with JSON
+        return Response(response, mimetype='application/json')
+    else:
+        return policy_not_found()
+
+# Helper methods
+
+def find_policy_by(**kwargs):
+    """
+    Attempts to fetch a single Policy record from the database matching the
+    given filter(s).
+
+    @param kwargs (dict): mapping of Policy filters to gather a single record
+            from the database. Expected keys are: id, policy_number
+    @return (Policy,NoneType): Policy object if one is found to match the
+            given criteria. None otherwise.
+    """
+    try:
+        return Policy.query.filter_by(**kwargs).one()
+    except sqlalchemy.orm.exc.NoResultFound:
+        return None
+
+def render_policy_details(policy, date_param, template):
+    """
+    Accumulates the account balance and any invoices of interest to the given
+    policy, and renders the data under the given template.
+
+    If no date string is given, the date string of the current day will be used
+    for scoping results.
+
+    @param policy (Policy): Policy to be rendered
+    @param date_param (str): Date in format YYYY-MM-DD to scope policy
+            association lookups
+    @param template (str): Name of a template, by which the given policy
+            should be rendered
+    @return (str): Content ready to be built into a werkzeug.wrappers.Response
+    """
+    date_string = date_param or datetime.now().date().strftime('%Y-%m-%d')
     date_cursor = datetime.strptime(date_string, '%Y-%m-%d').date()
     account_balance = PolicyAccounting(policy.id).return_account_balance(date_cursor=date_cursor)
     current_invoices = filter(lambda inv: inv.bill_date <= date_cursor, policy.invoices)
-
-    response = render_template('policy.json', policy=policy, account_balance=account_balance, invoices=current_invoices)
-    # We need to make sure we respond with JSON
-    return Response(response, mimetype='application/json')
+    return render_template(template, policy=policy, account_balance=account_balance, invoices=current_invoices)
 
 def policy_details(policy_search_params):
     """
@@ -84,6 +118,7 @@ def policy_details(policy_search_params):
     @param policy_search_params (werkzeug.datastructures.ImmutableMultiDict):
             policy_number to identify a Policy, and date to use to calculate
             account balance
+    @return (str): werkzeug.wrappers.Response for a redirection
     """
     date_scope = policy_search_params.get('date', datetime.now().date().strftime('%Y-%m-%d'))
     if match('\d{4}-\d\d-\d\d', policy_search_params['date']):
@@ -102,6 +137,9 @@ def policy_details(policy_search_params):
 def policy_not_found():
     """
     Renders to the requestor that no such policy exists.
+
+    @return (str): Content of the "policy not found" template
+    @return (int): 404, status code for response
     """
-    return render_template('policy_not_found.html')
+    return render_template('policy_not_found.html'), 404
 

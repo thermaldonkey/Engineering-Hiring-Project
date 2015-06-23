@@ -425,7 +425,7 @@ class BriceCorTestCase(unittest.TestCase):
     def test_knockout_search_contains_form(self):
         response = self.app.get('/v2/policy_search')
         self.assertRegexpMatches(response.data, '<form>')
-        self.assertRegexpMatches(response.data, 'input data-bind="value: policy_number"')
+        self.assertRegexpMatches(response.data, 'input data-bind="value: policy_number')
         self.assertRegexpMatches(response.data, 'input data-bind="value: date"')
 
     def test_viewing_missing_policy_gives_user_a_way_home(self):
