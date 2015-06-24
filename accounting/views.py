@@ -1,5 +1,6 @@
 # You will probably need more methods from flask but this one is a good start.
-from flask import render_template, request, flash, redirect, url_for, get_flashed_messages, jsonify, Response
+from flask import render_template, request, flash, redirect, url_for, \
+                    get_flashed_messages, jsonify, Response
 import sqlalchemy as realSQLAlchemy
 from flask.ext import sqlalchemy
 
@@ -49,7 +50,11 @@ def show_policy(policy_id):
     """
     policy = find_policy_by(id=policy_id)
     if policy:
-        return render_policy_details(policy, request.args.get('date'), 'show_policy.html')
+        return render_policy_details(
+                                        policy,
+                                        request.args.get('date'),
+                                        'show_policy.html'
+                                    )
     else:
         return policy_not_found()
 
@@ -67,7 +72,11 @@ def find_policy():
     policy = find_policy_by(policy_number=policy_number)
 
     if policy:
-        response = render_policy_details(policy, json_params.get('date'), 'policy.json')
+        response = render_policy_details(
+                                            policy,
+                                            json_params.get('date'),
+                                            'policy.json'
+                                        )
         # We need to make sure we respond with JSON
         return Response(response, mimetype='application/json')
     else:
@@ -160,9 +169,19 @@ def render_policy_details(policy, date_param, template):
     """
     date_string = date_param or datetime.now().date().strftime('%Y-%m-%d')
     date_cursor = datetime.strptime(date_string, '%Y-%m-%d').date()
-    account_balance = PolicyAccounting(policy.id).return_account_balance(date_cursor=date_cursor)
-    current_invoices = filter(lambda inv: inv.bill_date <= date_cursor, policy.invoices)
-    return render_template(template, policy=policy, account_balance=account_balance, invoices=current_invoices)
+    account_balance = PolicyAccounting(policy.id).return_account_balance(
+                                                    date_cursor=date_cursor
+                                                                        )
+    current_invoices = filter(
+                                lambda inv: inv.bill_date <= date_cursor,
+                                policy.invoices
+                             )
+    return render_template(
+                            template,
+                            policy=policy,
+                            account_balance=account_balance,
+                            invoices=current_invoices
+                          )
 
 def policy_details(policy_search_params):
     """
@@ -174,13 +193,18 @@ def policy_details(policy_search_params):
             account balance
     @return (str): werkzeug.wrappers.Response for a redirection
     """
-    date_scope = policy_search_params.get('date', datetime.now().date().strftime('%Y-%m-%d'))
+    date_scope = policy_search_params.get(
+        'date',
+        datetime.now().date().strftime('%Y-%m-%d')
+    )
     if match('\d{4}-\d\d-\d\d', policy_search_params['date']):
         try:
             policy = Policy.query.filter_by(
                 policy_number=policy_search_params['policy_number']
             ).one()
-            return redirect(url_for('show_policy', policy_id=policy.id, date=date_scope))
+            return redirect(
+                url_for('show_policy', policy_id=policy.id, date=date_scope)
+            )
         except sqlalchemy.orm.exc.NoResultFound:
             flash('No policy found with given number')
             return redirect(url_for('policy_search'))

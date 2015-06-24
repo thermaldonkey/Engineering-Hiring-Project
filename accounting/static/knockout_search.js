@@ -51,10 +51,16 @@ ko.extenders.numeric = function(target, overrideMessage) {
 function PolicyViewModel() {
 	var self = this;
 	self.chosenPolicyData = ko.observable();
-	self.policy_number = ko.observable().extend({ required: "Policy number is required" });
+	self.policy_number = ko.observable().extend({
+		required: "Policy number is required"
+	});
 	self.date = ko.observable();
-	self.billingSchedules = ko.observableArray(['Annual', 'Two-Pay', 'Quarterly', 'Monthly']);
-	self.paymentAmount = ko.observable().extend({ validated: true, numeric: "Must be all digits" });
+	self.billingSchedules = ko.observableArray(
+		['Annual', 'Two-Pay', 'Quarterly', 'Monthly']
+	);
+	self.paymentAmount = ko.observable().extend({
+		validated: true, numeric: "Must be all digits"
+	});
 
 	self.hasErrors = function() {
 		return !!self.policy_number.validationMessage()
@@ -88,7 +94,9 @@ function PolicyViewModel() {
 		// A 404 tells us the requested policy couldn't be found
 		if(request.status == 404) {
 			self.policy_number.hasError(true);
-			self.policy_number.validationMessage("No policy found with that number");
+			self.policy_number.validationMessage(
+				"No policy found with that number"
+			);
 		}
 	};
 	self.changeBillingSchedule = function() {
@@ -114,7 +122,9 @@ function PolicyViewModel() {
 			error: function(xhr, text, error) {
 				if(xhr.status == 422) {
 					self.paymentAmount.hasError(true);
-					self.paymentAmount.validationMessage("Policy must have a named insured to make a payment");
+					self.paymentAmount.validationMessage(
+						"Policy must have a named insured to make a payment"
+					);
 				}
 			},
 			dataType: 'json'

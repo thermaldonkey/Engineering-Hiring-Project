@@ -54,7 +54,10 @@ class TestBillingSchedules(unittest.TestCase):
         #Invoices should be made when the class is initiated
         pa = PolicyAccounting(self.policy.id)
         self.assertEquals(len(self.policy.invoices), 1)
-        self.assertEquals(self.policy.invoices[0].amount_due, self.policy.annual_premium)
+        self.assertEquals(
+                            self.policy.invoices[0].amount_due,
+                            self.policy.annual_premium
+                         )
 
     def test_monthly_billing_schedule(self):
         self.policy.billing_schedule = "Monthly"
@@ -67,7 +70,10 @@ class TestBillingSchedules(unittest.TestCase):
         self.assertEquals(number_of_billings, 12)
         amounts_due = [invoice.amount_due for invoice in self.policy.invoices]
         for amount in amounts_due:
-            self.assertEquals(amount, self.policy.annual_premium/number_of_billings)
+            self.assertEquals(
+                                amount,
+                                self.policy.annual_premium/number_of_billings
+                             )
 
 
 class TestEvaluateCancellationPendingDueToNonPay(unittest.TestCase):
@@ -105,32 +111,61 @@ class TestEvaluateCancellationPendingDueToNonPay(unittest.TestCase):
         pa = PolicyAccounting(self.policy.id)
         limbo_date = self.policy.invoices[0].due_date + relativedelta(days=1)
         for invoice in self.policy.invoices:
-            pa.make_payment(date_cursor=invoice.due_date,amount=invoice.amount_due)
+            pa.make_payment(
+                            date_cursor=invoice.due_date,
+                            amount=invoice.amount_due
+                           )
 
         self.assertEquals(pa.return_account_balance(date_cursor=limbo_date), 0)
-        self.assertFalse(pa.evaluate_cancellation_pending_due_to_non_pay(date_cursor=limbo_date))
+        self.assertFalse(
+            pa.evaluate_cancellation_pending_due_to_non_pay(
+                date_cursor=limbo_date
+            )
+        )
 
     def test_false_when_policy_cancelled(self):
         pa = PolicyAccounting(self.policy.id)
-        already_cancelled_date = self.policy.invoices[0].cancel_date + relativedelta(days=1)
+        already_cancelled_date = self.policy.invoices[0].cancel_date + \
+                                    relativedelta(days=1)
 
-        self.assertNotEquals(pa.return_account_balance(date_cursor=already_cancelled_date), 0)
-        self.assertFalse(pa.evaluate_cancellation_pending_due_to_non_pay(date_cursor=already_cancelled_date))
+        self.assertNotEquals(
+            pa.return_account_balance(date_cursor=already_cancelled_date),
+            0
+        )
+        self.assertFalse(
+            pa.evaluate_cancellation_pending_due_to_non_pay(
+                date_cursor=already_cancelled_date
+            )
+        )
 
     def test_true_when_one_invoice_not_paid(self):
         pa = PolicyAccounting(self.policy.id)
         limbo_date = self.policy.invoices[0].due_date + relativedelta(days=1)
 
-        self.assertNotEquals(pa.return_account_balance(date_cursor=limbo_date), 0)
-        self.assertTrue(pa.evaluate_cancellation_pending_due_to_non_pay(date_cursor=limbo_date))
+        self.assertNotEquals(
+            pa.return_account_balance(date_cursor=limbo_date),
+            0
+        )
+        self.assertTrue(
+            pa.evaluate_cancellation_pending_due_to_non_pay(
+                date_cursor=limbo_date
+            )
+        )
 
     def test_true_when_many_invoices_not_paid(self):
         self.policy.billing_schedule = 'Quarterly'
         pa = PolicyAccounting(self.policy.id)
         limbo_date = self.policy.invoices[0].due_date + relativedelta(days=1)
 
-        self.assertNotEquals(pa.return_account_balance(date_cursor=limbo_date), 0)
-        self.assertTrue(pa.evaluate_cancellation_pending_due_to_non_pay(date_cursor=limbo_date))
+        self.assertNotEquals(
+            pa.return_account_balance(date_cursor=limbo_date),
+            0
+        )
+        self.assertTrue(
+            pa.evaluate_cancellation_pending_due_to_non_pay(
+                date_cursor=limbo_date
+            )
+        )
 
 class TestEvaluateCancel(unittest.TestCase):
 
@@ -184,7 +219,10 @@ class TestEvaluateCancel(unittest.TestCase):
         cancellation_reason = 'Because I said so'
 
         self.assertIsNone(self.policy.cancel_reason)
-        self.pa.evaluate_cancel(date_cursor=cancellation_date, reason=cancellation_reason)
+        self.pa.evaluate_cancel(
+                                date_cursor=cancellation_date,
+                                reason=cancellation_reason
+                               )
         self.assertEquals(self.policy.cancel_reason, cancellation_reason)
 
 class TestChangeBillingSchedule(unittest.TestCase):
@@ -224,12 +262,18 @@ class TestChangeBillingSchedule(unittest.TestCase):
         # Ensure quarterly billing sets up as expected
         self.assertEquals(len(self.policy.invoices), 4)
         final_due_date = self.policy.invoices[-1].due_date
-        self.assertEquals(pa.return_account_balance(date_cursor=final_due_date), self.policy.annual_premium)
+        self.assertEquals(
+            pa.return_account_balance(date_cursor=final_due_date),
+            self.policy.annual_premium
+        )
 
         # Make a payment
         first_due_date = self.policy.invoices[0].due_date
         first_amount_due = self.policy.invoices[0].amount_due
-        payment = pa.make_payment(date_cursor=first_due_date,amount=first_amount_due)
+        payment = pa.make_payment(
+                                    date_cursor=first_due_date,
+                                    amount=first_amount_due
+                                 )
 
         pa.change_billing_schedule('Monthly')
 
@@ -242,7 +286,10 @@ class TestChangeBillingSchedule(unittest.TestCase):
                 self.assertFalse(self.policy.invoices[i].deleted)
 
         final_due_date = self.policy.invoices[-1].due_date
-        self.assertEquals(pa.return_account_balance(date_cursor=final_due_date), self.policy.annual_premium - payment.amount_paid)
+        self.assertEquals(
+            pa.return_account_balance(date_cursor=final_due_date),
+            self.policy.annual_premium - payment.amount_paid
+        )
 
     def test_annual_to_quarterly(self):
         self.policy.billing_schedule = 'Annual'
@@ -251,12 +298,18 @@ class TestChangeBillingSchedule(unittest.TestCase):
         # Ensure annual billing sets up as expected
         self.assertEquals(len(self.policy.invoices), 1)
         final_due_date = self.policy.invoices[-1].due_date
-        self.assertEquals(pa.return_account_balance(date_cursor=final_due_date), self.policy.annual_premium)
+        self.assertEquals(
+            pa.return_account_balance(date_cursor=final_due_date),
+            self.policy.annual_premium
+        )
 
         # Make a payment
         first_due_date = self.policy.invoices[0].due_date
         first_amount_due = self.policy.invoices[0].amount_due
-        payment = pa.make_payment(date_cursor=first_due_date,amount=first_amount_due/2)
+        payment = pa.make_payment(
+                                    date_cursor=first_due_date,
+                                    amount=first_amount_due/2
+                                 )
 
         pa.change_billing_schedule('Quarterly')
 
@@ -269,7 +322,10 @@ class TestChangeBillingSchedule(unittest.TestCase):
                 self.assertFalse(self.policy.invoices[i].deleted)
 
         final_due_date = self.policy.invoices[-1].due_date
-        self.assertEquals(pa.return_account_balance(date_cursor=final_due_date), self.policy.annual_premium - payment.amount_paid)
+        self.assertEquals(
+            pa.return_account_balance(date_cursor=final_due_date),
+            self.policy.annual_premium - payment.amount_paid
+        )
 
 class TestReturnAccountBalance(unittest.TestCase):
 
@@ -307,28 +363,45 @@ class TestReturnAccountBalance(unittest.TestCase):
     def test_annual_on_eff_date(self):
         self.policy.billing_schedule = "Annual"
         pa = PolicyAccounting(self.policy.id)
-        self.assertEquals(pa.return_account_balance(date_cursor=self.policy.effective_date), 1200)
+        self.assertEquals(
+            pa.return_account_balance(date_cursor=self.policy.effective_date),
+            1200
+        )
 
     def test_quarterly_on_eff_date(self):
         self.policy.billing_schedule = "Quarterly"
         pa = PolicyAccounting(self.policy.id)
-        self.assertEquals(pa.return_account_balance(date_cursor=self.policy.effective_date), 300)
+        self.assertEquals(
+            pa.return_account_balance(date_cursor=self.policy.effective_date),
+            300
+        )
 
     def test_quarterly_on_last_installment_bill_date(self):
         self.policy.billing_schedule = "Quarterly"
         pa = PolicyAccounting(self.policy.id)
         invoices = Invoice.query.filter_by(policy_id=self.policy.id)\
                                 .order_by(Invoice.bill_date).all()
-        self.assertEquals(pa.return_account_balance(date_cursor=invoices[3].bill_date), 1200)
+        self.assertEquals(
+            pa.return_account_balance(date_cursor=invoices[3].bill_date),
+            1200
+        )
 
     def test_quarterly_on_second_installment_bill_date_with_full_payment(self):
         self.policy.billing_schedule = "Quarterly"
         pa = PolicyAccounting(self.policy.id)
         invoices = Invoice.query.filter_by(policy_id=self.policy.id)\
                                 .order_by(Invoice.bill_date).all()
-        self.payments.append(pa.make_payment(contact_id=self.policy.named_insured,
-                                             date_cursor=invoices[1].bill_date, amount=600))
-        self.assertEquals(pa.return_account_balance(date_cursor=invoices[1].bill_date), 0)
+        self.payments.append(
+            pa.make_payment(
+                contact_id=self.policy.named_insured,
+                date_cursor=invoices[1].bill_date,
+                amount=600
+            )
+        )
+        self.assertEquals(
+            pa.return_account_balance(date_cursor=invoices[1].bill_date),
+            0
+        )
 
     def test_quarterly_on_last_installment_bill_date_with_deleted_invoice(self):
         self.policy.billing_schedule = "Quarterly"
@@ -342,7 +415,10 @@ class TestReturnAccountBalance(unittest.TestCase):
         db.session.add(invoice)
         db.session.commit()
 
-        self.assertEquals(pa.return_account_balance(date_cursor=invoices[3].bill_date), 900)
+        self.assertEquals(
+            pa.return_account_balance(date_cursor=invoices[3].bill_date),
+            900
+        )
 
 class BriceCorTestCase(unittest.TestCase):
 
@@ -389,43 +465,99 @@ class BriceCorTestCase(unittest.TestCase):
 
     def test_flask_search_contains_form(self):
         response = self.app.get('/v1/policy_search')
-        self.assertRegexpMatches(response.data, 'form action="/v1/policy_search" method="POST"')
-        self.assertRegexpMatches(response.data, 'input [\w=" ]+ name="policy_number"')
+        self.assertRegexpMatches(
+            response.data,
+            'form action="/v1/policy_search" method="POST"'
+        )
+        self.assertRegexpMatches(
+            response.data,
+            'input [\w=" ]+ name="policy_number"'
+        )
         self.assertRegexpMatches(response.data, 'input [\w=" ]+ name="date"')
 
     def test_flask_searching_redirects_to_policy(self):
-        response = self.app.post('/v1/policy_search', data={'policy_number': self.policy.policy_number, 'date': '2015-01-01'})
+        response = self.app.post(
+            '/v1/policy_search',
+            data={
+                'policy_number': self.policy.policy_number,
+                'date': '2015-01-01'
+            }
+        )
         self.assertEquals(response.status_code, 302)
-        self.assertRegexpMatches(response.location, '/policy/' + str(self.policy.id))
+        self.assertRegexpMatches(
+            response.location,
+            '/policy/' + str(self.policy.id)
+        )
 
     def test_flask_searching_allows_scoping_policy_account_balance(self):
         self.policy.billing_schedule = 'Quarterly'
         pa = PolicyAccounting(self.policy.id)
         second_invoice = self.policy.invoices[1]
-        balance_as_of_second_invoice = pa.return_account_balance(date_cursor=second_invoice.due_date)
+        balance_as_of_second_invoice = pa.return_account_balance(
+            date_cursor=second_invoice.due_date
+        )
 
-        response = self.app.post('/v1/policy_search', data={'policy_number': self.policy.policy_number, 'date': str(second_invoice.due_date)}, follow_redirects=True)
-        self.assertRegexpMatches(response.data, 'Account balance:</strong> \$' + str(balance_as_of_second_invoice))
+        response = self.app.post(
+            '/v1/policy_search',
+            data={
+                'policy_number': self.policy.policy_number,
+                'date': str(second_invoice.due_date)
+            },
+            follow_redirects=True
+        )
+        self.assertRegexpMatches(
+            response.data,
+            'Account balance:</strong> \$' + str(balance_as_of_second_invoice)
+        )
 
     def test_bad_date_scope_gives_user_feedback(self):
-        response = self.app.post('/v1/policy_search', data={'policy_number': self.policy.policy_number, 'date': ''}, follow_redirects=True)
-        self.assertRegexpMatches(response.data, 'Date search must have format YYYY-MM-DD')
+        response = self.app.post(
+            '/v1/policy_search',
+            data={
+                'policy_number': self.policy.policy_number,
+                'date': ''
+            },
+            follow_redirects=True
+        )
+        self.assertRegexpMatches(
+            response.data,
+            'Date search must have format YYYY-MM-DD'
+        )
 
     def test_bad_policy_number_gives_user_feedback(self):
         not_policy_number = self.policy.policy_number + 'foo'
-        response = self.app.post('/v1/policy_search', data={'policy_number': not_policy_number, 'date': '2015-01-01'}, follow_redirects=True)
-        self.assertRegexpMatches(response.data, 'No policy found with given number')
+        response = self.app.post(
+            '/v1/policy_search',
+            data={
+                'policy_number': not_policy_number,
+                'date': '2015-01-01'
+            },
+            follow_redirects=True
+        )
+        self.assertRegexpMatches(
+            response.data,
+            'No policy found with given number'
+        )
 
     def test_bad_flask_search_redirects_back_to_flask_search(self):
         not_policy_number = self.policy.policy_number + 'foo'
-        response = self.app.post('/v1/policy_search', data={'policy_number': not_policy_number, 'date': '2015-01-01'})
+        response = self.app.post(
+            '/v1/policy_search',
+            data={
+                'policy_number': not_policy_number,
+                'date': '2015-01-01'
+            }
+        )
         self.assertEquals(response.status_code, 302)
         self.assertRegexpMatches(response.location, '/v1/policy_search')
 
     def test_knockout_search_contains_form(self):
         response = self.app.get('/v2/policy_search')
         self.assertRegexpMatches(response.data, '<form>')
-        self.assertRegexpMatches(response.data, 'input data-bind="value: policy_number')
+        self.assertRegexpMatches(
+            response.data,
+            'input data-bind="value: policy_number'
+        )
         self.assertRegexpMatches(response.data, 'input data-bind="value: date"')
 
     def test_viewing_missing_policy_gives_user_a_way_home(self):
@@ -437,11 +569,15 @@ class BriceCorTestCase(unittest.TestCase):
         self.policy.billing_schedule = 'Quarterly'
         # With this effective date, current date will consider only the first
         # two invoices as current or outsanding.
-        self.policy.effective_date = datetime.now().date() - relativedelta(months=3)
+        self.policy.effective_date = datetime.now().date() - \
+                                        relativedelta(months=3)
         pa = PolicyAccounting(self.policy.id)
         first_invoice = self.policy.invoices[0]
         pa.make_payment(date_cursor=first_invoice.due_date, amount=300)
-        current_invoices = filter(lambda inv: inv.bill_date <= datetime.now().date(), self.policy.invoices)
+        current_invoices = filter(
+            lambda inv: inv.bill_date <= datetime.now().date(),
+            self.policy.invoices
+        )
 
         response = self.app.get('/policy/' + str(self.policy.id))
         self.assertRegexpMatches(response.data, 'Invoices')
@@ -456,5 +592,8 @@ class BriceCorTestCase(unittest.TestCase):
         pa = PolicyAccounting(self.policy.id)
         current_account_balance = pa.return_account_balance()
         response = self.app.get('/policy/' + str(self.policy.id))
-        self.assertRegexpMatches(response.data, 'Account balance:</strong> \$' + str(current_account_balance))
+        self.assertRegexpMatches(
+            response.data,
+            'Account balance:</strong> \$' + str(current_account_balance)
+        )
 

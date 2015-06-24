@@ -197,23 +197,33 @@ class PolicyAccounting(object):
         for invoice in self.policy.invoices:
             invoice.delete()
 
-        billing_schedules = {'Annual': None, 'Two-Pay': 2, 'Quarterly': 4, 'Monthly': 12}
+        billing_schedules = {
+                                'Annual': None,
+                                'Two-Pay': 2,
+                                'Quarterly': 4,
+                                'Monthly': 12
+                            }
 
         invoices = []
-        first_invoice = Invoice(self.policy.id,
-                                self.policy.effective_date, #bill_date
-                                self.policy.effective_date + relativedelta(months=1), #due
-                                self.policy.effective_date + relativedelta(months=1, days=14), #cancel
-                                self.policy.annual_premium)
+        first_invoice = Invoice(
+            self.policy.id,
+            self.policy.effective_date, #bill_date
+            self.policy.effective_date + relativedelta(months=1), #due
+            self.policy.effective_date + relativedelta(months=1, days=14), #cancel
+            self.policy.annual_premium
+        )
         invoices.append(first_invoice)
 
         if self.policy.billing_schedule in billing_schedules.keys():
-            billing_frequency = billing_schedules.get(self.policy.billing_schedule) or 1
+            billing_frequency = \
+                    billing_schedules.get(self.policy.billing_schedule) or 1
             months_elapsed_between_billings = 12 / billing_frequency
-            first_invoice.amount_due = first_invoice.amount_due / billing_frequency
+            first_invoice.amount_due = \
+                                first_invoice.amount_due / billing_frequency
             for i in range(1, billing_frequency):
                 months_after_eff_date = i * months_elapsed_between_billings
-                bill_date = self.policy.effective_date + relativedelta(months=months_after_eff_date)
+                bill_date = self.policy.effective_date + \
+                                relativedelta(months=months_after_eff_date)
                 invoice = Invoice(self.policy.id,
                                   bill_date,
                                   bill_date + relativedelta(months=1),
