@@ -1,5 +1,6 @@
 # You will probably need more methods from flask but this one is a good start.
 from flask import render_template, request, flash, redirect, url_for, get_flashed_messages, jsonify, Response
+import sqlalchemy as realSQLAlchemy
 from flask.ext import sqlalchemy
 
 # Import things from Flask that we need.
@@ -71,6 +72,59 @@ def find_policy():
         return Response(response, mimetype='application/json')
     else:
         return policy_not_found()
+
+@app.route('/change_billing_schedule', methods=['POST'])
+def change_billing_schedule():
+    """
+    Changes the billing schedule of the referenced policy and renders it in
+    response, as JSON.
+    """
+    json_params = json.loads(request.data)
+
+    pa = PolicyAccounting(json_params.get('id'))
+    pa.change_billing_schedule(json_params.get('billing_schedule'))
+
+    # Typically, we'd be concerned if this returned None, but nobody changes
+    # this value, so we're good.
+    policy = find_policy_by(id=json_params.get('id'))
+
+    # This will reset the date scope in HTML views to the current date. This
+    # made sense as changing billing schedule no longer pertains to a date
+    # range. A form already exists to scope invoices and account balance after
+    # the fact.
+    response = render_policy_details(policy, None, 'policy.json')
+    return Response(response, mimetype='application/json')
+
+@app.route('/make_payment', methods=['POST'])
+def make_payment():
+    """
+    Applies a new payment to the given policy, filed under the current date
+    and the policy's named insured. Details on the policy are then
+    recomputed and rendered to the requestor as JSON.
+
+    If no named insured exists for the policy, a 422 status is rendered.
+    """
+    json_params = json.loads(request.data)
+    policy_id = json_params.get('chosenPolicyData').get('id')
+    amount = int(json_params.get('paymentAmount'))
+
+    pa = PolicyAccounting(policy_id)
+    try:
+        pa.make_payment(amount=amount)
+    except realSQLAlchemy.exc.IntegrityError:
+        db.session.rollback()
+        return "", 422
+
+    # Typically, we'd be concerned if this returned None, but nobody changes
+    # this value, so we're good.
+    policy = find_policy_by(id=policy_id)
+
+    # This will reset the date scope in HTML views to the current date. This
+    # made sense as making a payment is only considered for the current day.
+    # A form already exists to scope invoices and account balance after the
+    # fact.
+    response = render_policy_details(policy, None, 'policy.json')
+    return Response(response, mimetype='application/json')
 
 # Helper methods
 

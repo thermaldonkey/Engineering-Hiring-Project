@@ -2,6 +2,7 @@
   "id": {{ policy.id|tojson }},
   "policy_number": {{ policy.policy_number|tojson|safe }},
   "account_balance": {{ account_balance|tojson }},
+  "billing_schedule": {{ policy.billing_schedule|tojson }},
   "invoices": [
     {%- for i in range(invoices|length) %}
       {%- with invoice = invoices[i] -%}
